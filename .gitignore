@@ -1,0 +1,12 @@
+# Terraform local state and history
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Sensitive variables file
+*.tfvars
+*.tfvars.json
