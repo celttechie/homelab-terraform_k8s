@@ -8,6 +8,7 @@ terraform {
   }
 }
 
+# Construct URI dynamically using declared variables
 provider "libvirt" {
-  uri = "qemu+ssh://bjarrett@192.168.9.110/system"
+  uri = "qemu+ssh://${var.libvirt_user}@${var.libvirt_host_ip}/system"
 }
