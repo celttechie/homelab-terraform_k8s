@@ -32,8 +32,8 @@ resource "libvirt_volume" "test_node_disk" {
 
 # 3. Inject Cloud-Init configuration
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name      = "commoninit.iso"
-  pool      = "default"
+  name = "commoninit.iso"
+  pool = "default"
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
     hostname       = "k8s-test-node"
     ssh_public_key = file(var.ssh_public_key_path)
@@ -71,7 +71,7 @@ resource "libvirt_domain" "test_vm" {
     listen_type = "address"
     autoport    = true
   }
-} 
+}
 
 # 5. Output VM IP address once provisioned
 output "ip_address" {

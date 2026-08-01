@@ -1,0 +1,50 @@
+repos:
+  # 1. Standard Git Hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--allow-multiple-documents']
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+  # 2. Secret Scanning (Offline, sub-second)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+
+  # 3. Terraform Quality & Validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.89.1
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+
+  # 4. Terraform Documentation Generation (Auto-installed via Go)
+  - repo: local
+    hooks:
+      - id: terraform-docs
+        name: terraform-docs
+        entry: terraform-docs
+        language: golang
+        additional_dependencies: ['github.com/terraform-docs/terraform-docs@v0.18.0']
+        files: \.tf$
+        pass_filenames: false
+        args: ['markdown', 'table', './terraform']
+
+  # 5. Kubernetes Manifest Validation
+  - repo: local
+    hooks:
+      - id: kubeconform
+        name: kubeconform
+        entry: kubeconform
+        language: golang
+        additional_dependencies: ['github.com/yannh/kubeconform/cmd/kubeconform@v0.6.6']
+        files: \.(yaml|yml)$
+        exclude: '^(\.pre-commit-config\.yaml|\.github/.*|charts/.*)$'
+        args: ['-strict', '-summary']
