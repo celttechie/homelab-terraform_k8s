@@ -1,118 +1,112 @@
-# Local Development & Control Plane Setup
+# Infrastructure Setup & Deployment Guide
 
-This document outlines the prerequisite software, host connectivity configuration, and verification steps required to manage remote infrastructure components on a target hypervisor host using Terraform within a Linux-based control plane environment.
+## Overview
+This document outlines the prerequisite software, host connectivity configuration, and verification steps required to manage remote infrastructure components on a target KVM hypervisor host using Terraform within a Linux-based control plane environment. VMs attach directly to the primary LAN via an L2 bridge interface, enabling transparent L2/L3 visibility across physical and virtual nodes.
 
 ---
 
 ## 1. System Architecture Overview
 
-| Role | Component | OS / Environment | Details |
+| Role | Component | Environment | Details |
 | --- | --- | --- | --- |
-| **Control Plane** | Workstation Node | Linux / WSL2 (Ubuntu) | Runs VS Code, Git, Terraform CLI, and `virsh` client |
-| **Hypervisor Target** | KVM Host | Linux Host (`<target-server-ip>`) | Runs `libvirtd`, container runtimes, and target VMs |
+| **Control Plane** | Workstation Node | Linux / WSL2 | Runs VS Code, Git, Terraform CLI, and `virsh` client |
+| **Hypervisor Target** | KVM Host | Linux Host (`<target-server-ip>`) | Runs `libvirtd`, QEMU/KVM, AppArmor, and `br0` network bridge |
 
 ---
 
-## 2. Prerequisites & Local Tooling Installation
+## 2. Host Prerequisites & Networking Setup
 
-All provisioning commands are executed inside the control plane terminal environment.
+Before running Terraform, the host server (`<target-kvm-host>`) must have its physical interface configured as part of a Linux bridge (`br0`) and registered within `libvirt`.
 
-### Install `libvirt-clients`
+### Netplan / NetworkManager Configuration
+Configure the host primary ethernet interface (`<network-interface>`) to operate as a slave to `br0`:
 
-To manage remote QEMU/KVM domains over SSH without running a local hypervisor daemon on the control plane:
+* **File:** `/etc/netplan/01-br0.yaml` (Permissions: `0600`)
 
-```bash
-sudo apt update && sudo apt install -y libvirt-clients
+```yaml
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    <network-interface>:
+      match:
+        macaddress: "<mac-address>"
+      dhcp4: no
+      dhcp6: no
 
+  bridges:
+    br0:
+      interfaces: [<network-interface>]
+      dhcp4: yes
+      dhcp6: no
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4
+      parameters:
+        stp: false
+        forward-delay: 0
 ```
 
-### Install Terraform (Official HashiCorp Repository)
-
-To ensure system stability and avoid container/sandbox restrictions, install Terraform directly from HashiCorp's official APT repository:
-
+Apply the netplan configuration on the host:
 ```bash
-# Install prerequisites
-sudo apt update && sudo apt install -y gnupg software-properties-common curl
-
-# Add HashiCorp GPG key
-wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-# Add official repository
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-
-# Update & install
-sudo apt update && sudo apt install -y terraform
-
-```
-
----
-
-## 3. Remote Hypervisor Authentication & Connectivity
-
-Authentication to the hypervisor host uses passwordless SSH key authentication over the `qemu+ssh://` transport layer.
-
-### 1. Verify SSH Key Access
-
-Ensure your local SSH public key (`~/.ssh/id_ed25519.pub` or `~/.ssh/id_rsa.pub`) is authorized on the hypervisor host:
-
-```bash
-ssh <username>@<target-server-ip>
-
-```
-
-### 2. Validate Libvirt Socket Connection
-
-Test remote domain enumeration from the control plane using `virsh`:
-
-```bash
-virsh -c qemu+ssh://<username>@<target-server-ip>/system list --all
-
-```
-
-**Expected Output Example (should show configured VMs and their state):**
-
-```text
- Id   Name           State
--------------------------------
- -    vm-1       running
- -    vm-2       shut off
- -    vm-3       idle
-
+sudo netplan apply
 ```
 
 ---
 
-## 4. Terraform Workspace Initialization
+## 3. Host Security & Permissions Posture
 
-The primary Terraform configuration resides under the `terraform/` directory in the repository.
+To allow Terraform to provision VMs remotely under a non-root account (`<username>`) while preserving server security posture:
+
+### A. Non-Root Group Membership (RBAC)
+Grant socket access to `qemu:///system` without requiring elevated `sudo` privileges:
+```bash
+sudo usermod -aG libvirt,kvm <username>
+```
+
+### B. AppArmor Sandbox Confinement
+Scope QEMU process access to the storage pool using Ubuntu's standard local abstraction file:
+```bash
+sudo mkdir -p /etc/apparmor.d/local/abstractions
+echo '/var/lib/libvirt/images/** rwk,' | sudo tee /etc/apparmor.d/local/abstractions/libvirt-qemu
+sudo systemctl reload apparmor
+```
+
+---
+
+## 4. Control Plane Prerequisites & SSH Setup
+
+### A. Local Tooling Installation
+Install `libvirt-clients` and `terraform` on the workstation:
+```bash
+sudo apt update && sudo apt install -y libvirt-clients terraform
+```
+
+### B. Remote Hypervisor Connectivity
+Test passwordless SSH and remote domain enumeration over `qemu+ssh`:
+```bash
+virsh -c "qemu+ssh://<username>@<target-server-ip>/system?keyfile=~/.ssh/id_ed25519" list --all
+```
+
+---
+
+## 5. Terraform Workspace Initialization
+
+The primary Terraform configuration resides under the `terraform/` directory.
 
 ### Provider Configuration (`terraform/main.tf`)
+Uses explicit private key authentication and enforces strict host key verification against `known_hosts`:
 
 ```hcl
-terraform {
-  required_version = ">= 1.0.0"
-  required_providers {
-    libvirt = {
-      source  = "dmacvicar/libvirt"
-      version = "~> 0.7.0"
-    }
-  }
-}
-
 provider "libvirt" {
-  uri = "qemu+ssh://<username>@<target-server-ip>/system"
+  uri = "qemu+ssh://${var.libvirt_user}@${var.libvirt_host_ip}/system?keyfile=${pathexpand(var.ssh_private_key_path)}&known_hosts=${pathexpand(var.ssh_known_hosts_path)}"
 }
-
 ```
 
-### Initialize Workspace
-
-Run the initialization step to lock provider plugins:
-
+### Initialize and Plan Workspace
 ```bash
 cd terraform
 terraform init
-
+terraform plan
 ```
-
-Upon successful execution, Terraform creates `.terraform.lock.hcl` to lock the `dmacvicar/libvirt` provider version.
