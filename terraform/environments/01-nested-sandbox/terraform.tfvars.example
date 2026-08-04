@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and customize for your environment:
+# cp terraform.tfvars.example terraform.tfvars
+
+libvirt_host_ip = "10.0.0.100"
+libvirt_user    = "myuser"
+sandbox_memory  = "4096"
+sandbox_vcpu    = 2

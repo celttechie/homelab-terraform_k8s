@@ -17,6 +17,32 @@ Ensure the following tooling is installed on your control plane workstation:
 sudo apt update && sudo apt install -y terraform libvirt-clients pre-commit
 ```
 
+### Unified Hypervisor Audit & Remediation (`scripts/bootstrap-host.sh`)
+
+The repository includes a unified, idempotent host bootstrap script (`scripts/bootstrap-host.sh`) designed to audit (`--check`) and auto-remediate/fix hypervisor requirements across both **bare-metal hypervisors (Stage 0)** and **nested VM hypervisors (Stage 1)**.
+
+#### Architecture: Cloud-Init vs. Bootstrap Script
+* **Cloud-Init (First-Boot Native Setup)**: Handles fast, declarative image initialization (package installation, user SSH keys, initial storage directory creation, and AppArmor rules) during early OS boot at native speed.
+* **Bootstrap Script (Unified Audit & Remediation)**: Embedded at `/usr/local/bin/bootstrap-host.sh` on both physical and virtual hypervisors. On first boot, cloud-init invokes this script in `--check` mode to log a complete verification audit to `/var/log/bootstrap-audit.log`. It can be run manually at any time to verify posture or auto-fix missing dependencies.
+
+#### 1. Read-Only Audit Mode (`--check` / `--dry-run`)
+Performs a non-destructive audit of required KVM packages, `libvirt`/`kvm` group access, storage pool permissions (`2775`), AppArmor rules, and active network posture without modifying files:
+```bash
+# Run read-only audit remotely over SSH (works on physical or VM hypervisors):
+ssh <username>@<target-server-ip> 'bash -s -- --check <username>' < scripts/bootstrap-host.sh
+
+# OR run locally on hypervisor:
+./scripts/bootstrap-host.sh --check <username>
+```
+
+#### 2. Auto-Remediation & Host Preparation (Apply Mode)
+Installs missing KVM packages, configures non-root `libvirt`/`kvm` group access, sets up `/var/lib/libvirt/images` storage pool permissions, applies AppArmor sandbox rules, and activates `libvirtd` and default networks:
+```bash
+sudo ./scripts/bootstrap-host.sh <username>
+```
+
+
+
 ---
 
 ## 2. Pre-Commit Hooks & Quality Assurance
@@ -46,26 +72,29 @@ This repository uses [`pre-commit`](https://pre-commit.com/) to automatically en
 
 ---
 
-## 3. Terraform Provisioning Workflow
+## 3. Stage 1 Terraform Provisioning Workflow (`01-nested-sandbox`)
 
-### Workspace Variables (`terraform/terraform.tfvars`)
+### Workspace Variables (`terraform/environments/01-nested-sandbox/terraform.tfvars`)
 
-Copy the example configuration file and customize variables for your control plane environment:
+Navigate to the Stage 1 environment workspace, copy the example configuration file, and customize variables for your control plane environment:
 
 ```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+cd terraform/environments/01-nested-sandbox
+cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edit `terraform/terraform.tfvars`:
+Edit `terraform.tfvars`:
 ```hcl
 libvirt_host_ip = "<target-server-ip>"
 libvirt_user    = "<username>"
+sandbox_memory  = "4096"
+sandbox_vcpu    = 2
 ```
 
 ### Execution Steps
 
 ```bash
-cd terraform
+cd terraform/environments/01-nested-sandbox
 
 # Initialize provider plugins
 terraform init
