@@ -35,7 +35,7 @@ repos:
         additional_dependencies: ['github.com/terraform-docs/terraform-docs@v0.18.0']
         files: \.tf$
         pass_filenames: false
-        args: ['markdown', 'table', './terraform']
+        args: ['markdown', 'table', '--output-file', 'README.md', './terraform/environments/01-nested-sandbox']
 
   # 5. Kubernetes Manifest Validation
   - repo: local

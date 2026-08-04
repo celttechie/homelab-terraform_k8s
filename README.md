@@ -17,14 +17,19 @@ Automated provisioner for KVM virtual machines on local hypervisor infrastructur
 Before running Terraform, ensure all required control plane binaries are installed by following the **[Developer & Workflow Guide](DEVELOPMENT.md#1-local-tooling-prerequisites)**.
 
 ```bash
-# 1. Install and register pre-commit hooks (See DEVELOPMENT.md)
+# 1. Audit target hypervisor host (non-destructive)
+ssh <username>@<target-server-ip> 'bash -s -- --check <username>' < scripts/bootstrap-host.sh
+
+# 2. Install and register pre-commit hooks (See DEVELOPMENT.md)
 pre-commit install
 
-# 2. Configure environment variables
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# 3. Navigate to Stage 1 Nested Sandbox workspace
+cd terraform/environments/01-nested-sandbox
 
-# 3. Plan and apply infrastructure
-cd terraform
+# 4. Configure environment variables
+cp terraform.tfvars.example terraform.tfvars
+
+# 5. Plan and apply Stage 1 infrastructure
 terraform init
 terraform plan
 ```

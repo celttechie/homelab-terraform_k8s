@@ -8,43 +8,49 @@ terraform {
   }
 }
 
-# Construct URI dynamically using declared variables
+# Construct provider URI using declared variables
 provider "libvirt" {
   uri = "qemu+ssh://${var.libvirt_user}@${var.libvirt_host_ip}/system?keyfile=${pathexpand(var.ssh_private_key_path)}&known_hosts=${pathexpand(var.ssh_known_hosts_path)}"
 }
 
 # 1. Fetch official Ubuntu 22.04 LTS Cloud Image
 resource "libvirt_volume" "ubuntu_base" {
-  name   = "ubuntu-22.04-base.qcow2"
+  name   = "sandbox-ubuntu-22.04-base.qcow2"
   pool   = "default"
   source = "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
   format = "qcow2"
 }
 
-# 2. Create copy-on-write disk volume for test VM
-resource "libvirt_volume" "test_node_disk" {
-  name           = "test-node-disk.qcow2"
+# 2. Create copy-on-write disk volume for the Nested Sandbox VM
+resource "libvirt_volume" "sandbox_hypervisor_disk" {
+  name           = "sandbox-hypervisor-disk.qcow2"
   pool           = "default"
   base_volume_id = libvirt_volume.ubuntu_base.id
   format         = "qcow2"
-  size           = 10737418240 # 10 GB
+  size           = 42949672960 # 40 GB for nested workloads
 }
 
 # 3. Inject Cloud-Init configuration
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name = "commoninit.iso"
+  name = "sandbox-commoninit.iso"
   pool = "default"
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
-    hostname       = "k8s-test-node"
-    ssh_public_key = file(var.ssh_public_key_path)
+    hostname         = "sandbox-hypervisor-node"
+    ssh_public_key   = file(var.ssh_public_key_path)
+    bootstrap_script = file("${path.module}/../../../scripts/bootstrap-host.sh")
   })
 }
 
-# 4. Define Virtual Machine Domain
-resource "libvirt_domain" "test_vm" {
-  name   = "k8s-test-node"
-  memory = "2048"
-  vcpu   = 2
+# 4. Define Nested Sandbox Hypervisor Domain
+resource "libvirt_domain" "sandbox_hypervisor" {
+  name   = "sandbox-hypervisor-node"
+  memory = var.sandbox_memory
+  vcpu   = var.sandbox_vcpu
+
+  # Expose physical host CPU virtualization extensions (/dev/kvm) into guest VM
+  cpu {
+    mode = "host-passthrough"
+  }
 
   cloudinit = libvirt_cloudinit_disk.commoninit.id
 
@@ -52,12 +58,14 @@ resource "libvirt_domain" "test_vm" {
   qemu_agent = true
 
   network_interface {
-    network_name   = "host-bridge"
+    network_name   = var.libvirt_network_name
     wait_for_lease = true
   }
 
+
+
   disk {
-    volume_id = libvirt_volume.test_node_disk.id
+    volume_id = libvirt_volume.sandbox_hypervisor_disk.id
   }
 
   console {
@@ -71,10 +79,4 @@ resource "libvirt_domain" "test_vm" {
     listen_type = "address"
     autoport    = true
   }
-}
-
-# 5. Output VM IP address once provisioned
-output "ip_address" {
-  value       = libvirt_domain.test_vm.network_interface[0].addresses
-  description = "The IP address of the provisioned VM"
 }
