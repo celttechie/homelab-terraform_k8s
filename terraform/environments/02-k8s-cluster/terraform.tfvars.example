@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars and customize for your environment:
+# cp terraform.tfvars.example terraform.tfvars
+
+nested_hypervisor_ip   = "192.168.1.100" # Replace with your Stage 1 sandbox_ip_address output
+nested_hypervisor_user = "ubuntu"
+cluster_network_cidr   = "192.168.2.0/24"
+k8s_control_plane_ip   = "192.168.2.10"
+k8s_worker_count       = 2
+k8s_worker_ips         = ["192.168.2.21", "192.168.101.22"]
+k8s_control_plane_memory = "4096"
+k8s_control_plane_vcpu   = 2
+k8s_worker_memory        = "2048"
+k8s_worker_vcpu           = 2

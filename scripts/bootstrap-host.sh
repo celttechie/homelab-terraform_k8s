@@ -224,12 +224,14 @@ fi
 echo "=== [5/5] Ensuring Libvirt Service & Networks Active ==="
 systemctl enable --now libvirtd || true
 
-# Ensure default NAT pool / network active
-if virsh pool-info default &>/dev/null; then
-  virsh pool-autostart default 2>/dev/null || true
-  virsh pool-start default 2>/dev/null || true
-  pass "Default storage pool autostart enabled."
+# Ensure default storage pool is defined and active
+if ! virsh pool-info default &>/dev/null; then
+  virsh pool-define-as default dir --target /var/lib/libvirt/images 2>/dev/null || true
 fi
+virsh pool-autostart default 2>/dev/null || true
+virsh pool-start default 2>/dev/null || true
+pass "Default storage pool defined and activated."
+
 
 if virsh net-info default &>/dev/null; then
   virsh net-autostart default 2>/dev/null || true
