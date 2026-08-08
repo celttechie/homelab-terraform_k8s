@@ -108,9 +108,50 @@ terraform apply
 
 ---
 
-## 4. Git & Pull Request Workflow
+## 4. Stage 2 Downstream K8s Cluster Provisioning (`02-k8s-cluster`)
+
+### Workspace Variables (`terraform/environments/02-k8s-cluster/terraform.tfvars`)
+
+After Stage 1 is applied, navigate to the Stage 2 environment workspace, copy the example configuration file, and set `nested_hypervisor_ip` to the Stage 1 `sandbox_ip_address` output:
+
+```bash
+cd terraform/environments/02-k8s-cluster
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars`:
+```hcl
+nested_hypervisor_ip   = "<sandbox-vm-ip>" # e.g. IP from Stage 1 sandbox_ip_address output
+
+nested_hypervisor_user = "ubuntu"
+cluster_network_cidr   = "192.168.122.0/24"
+k8s_control_plane_ip   = "192.168.122.10"
+k8s_worker_count       = 2
+k8s_worker_ips         = ["192.168.122.20", "192.168.122.21"]
+```
+
+### Execution Steps
+
+```bash
+cd terraform/environments/02-k8s-cluster
+
+# Initialize provider plugins
+terraform init
+
+# Generate execution plan
+terraform plan
+
+# Apply infrastructure changes
+terraform apply
+```
+
+---
+
+
+## 5. Git & Pull Request Workflow
 
 All contributions must follow an atomic feature branching strategy and conform to standard repository Pull Request governance.
+
 
 ### Step-by-Step Feature Workflow
 
@@ -137,7 +178,8 @@ All contributions must follow an atomic feature branching strategy and conform t
 
 ---
 
-## 5. Security & Secret Prevention
+## 6. Security & Secret Prevention
+
 
 - **Never commit `.tfvars` files containing credentials.** (Enforced via `.gitignore`).
 - **Always verify SSH Host Keys.** Provider URIs use strict `known_hosts` verification.
