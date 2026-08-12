@@ -61,19 +61,36 @@ resource "libvirt_cloudinit_disk" "worker_init" {
   })
 }
 
+# Dedicated Private K8s Cluster Network Bridge (Pure IaC Network Management)
+resource "libvirt_network" "k8s_network" {
+  name      = "k8s-network"
+  mode      = "nat"
+  domain    = "k8s.local"
+  addresses = [var.cluster_network_cidr]
+  autostart = true
+
+  dhcp {
+    enabled = true
+  }
+
+  dns {
+    enabled = true
+  }
+}
+
 # 6. Kubernetes Control Plane VM Domain
 resource "libvirt_domain" "k8s_control_plane" {
   name       = "k8s-control-plane"
   memory     = var.k8s_control_plane_memory
   vcpu       = var.k8s_control_plane_vcpu
-  qemu_agent = true
+  qemu_agent = false
 
   cloudinit = libvirt_cloudinit_disk.control_plane_init.id
 
   network_interface {
-    network_name   = "default"
+    network_id     = libvirt_network.k8s_network.id
     addresses      = [var.k8s_control_plane_ip]
-    wait_for_lease = true
+    wait_for_lease = false
   }
 
   disk {
@@ -99,14 +116,14 @@ resource "libvirt_domain" "k8s_worker" {
   name       = "k8s-worker-${format("%02d", count.index + 1)}"
   memory     = var.k8s_worker_memory
   vcpu       = var.k8s_worker_vcpu
-  qemu_agent = true
+  qemu_agent = false
 
   cloudinit = libvirt_cloudinit_disk.worker_init[count.index].id
 
   network_interface {
-    network_name   = "default"
+    network_id     = libvirt_network.k8s_network.id
     addresses      = [var.k8s_worker_ips[count.index]]
-    wait_for_lease = true
+    wait_for_lease = false
   }
 
   disk {
