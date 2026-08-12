@@ -1,0 +1,73 @@
+name: "🐛 Bug Report"
+description: "File a structured bug report to help us identify and resolve issues"
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please fill out the fields below as completely as possible to help us diagnose and fix the problem efficiently.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "🐛 Bug Description"
+      description: "A clear and concise summary of the issue."
+      placeholder: "Describe what went wrong..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "🛠️ Affected Component / Stage"
+      description: "Select which part of the infrastructure or automation is impacted."
+      options:
+        - "Stage 1: Hypervisor & Virtual Networks"
+        - "Stage 2: Kubernetes Cluster & Workloads"
+        - "Ansible & Cloud-Init Provisioning"
+        - "Terraform Modules & Configs"
+        - "CI/CD, Pre-commit & Tooling"
+        - "Documentation & ADRs"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "👣 Steps to Reproduce"
+      description: "Step-by-step instructions to reproduce the issue."
+      placeholder: |
+        1. Run 'cd terraform/environments/02-k8s-cluster && terraform apply'
+        2. Observe error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "💡 Expected Behavior"
+      description: "A clear description of what you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "📜 Relevant Logs & Terminal Output"
+      description: "Paste relevant command outputs, Terraform traces, or systemd log snippets."
+      render: shell
+      placeholder: "Paste logs here..."
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "💻 Environment Info"
+      description: "OS version, Terraform version, Libvirt/QEMU version, tool versions."
+      placeholder: "OS: Ubuntu 24.04 LTS\nTerraform: v1.8.0\nLibvirt: v10.0.0"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "📌 Additional Context / Root Cause Insights"
+      description: "Any extra context, potential root cause hypotheses, or workaround notes."
