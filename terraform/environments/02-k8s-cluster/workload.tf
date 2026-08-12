@@ -12,6 +12,11 @@ resource "null_resource" "deploy_dashboard_workload" {
   # Deploy Dashboard Service on Worker Node via Jump Host and Configure Hypervisor NAT Forwarding
   provisioner "local-exec" {
     command = <<EOT
+      echo '===> Waiting for Worker Node ${var.k8s_worker_ips[0]} to complete first boot...'
+      for i in $(seq 1 30); do
+        ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -i ${var.ssh_private_key_path} -J ${var.nested_hypervisor_user}@${var.nested_hypervisor_ip} ${var.nested_hypervisor_user}@${var.k8s_worker_ips[0]} "echo ready" 2>/dev/null && break || sleep 2
+      done
+
       echo '===> Uploading Dashboard Service to Worker Node ${var.k8s_worker_ips[0]}...'
       scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${var.ssh_private_key_path} -J ${var.nested_hypervisor_user}@${var.nested_hypervisor_ip} ${path.module}/manifests/dashboard.py ${var.nested_hypervisor_user}@${var.k8s_worker_ips[0]}:/tmp/dashboard.py
 
