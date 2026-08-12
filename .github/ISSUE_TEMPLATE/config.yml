@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Architecture Decision Records (ADRs)
+    url: https://github.com/celttechie/homelab-terraform_k8s/tree/main/docs/adr
+    about: Review accepted architectural decisions before opening new feature requests.
+  - name: 💬 Pull Request Guidelines
+    url: https://github.com/celttechie/homelab-terraform_k8s/blob/main/.github/PULL_REQUEST_TEMPLATE.md
+    about: Guidelines for submitting PRs and running validation checks.
