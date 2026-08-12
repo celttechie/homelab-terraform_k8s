@@ -124,10 +124,10 @@ Edit `terraform.tfvars`:
 nested_hypervisor_ip   = "<sandbox-vm-ip>" # e.g. IP from Stage 1 sandbox_ip_address output
 
 nested_hypervisor_user = "ubuntu"
-cluster_network_cidr   = "192.168.122.0/24"
-k8s_control_plane_ip   = "192.168.122.10"
+cluster_network_cidr   = "192.168.10.0/24"
+k8s_control_plane_ip   = "192.168.10.10"
 k8s_worker_count       = 2
-k8s_worker_ips         = ["192.168.122.20", "192.168.122.21"]
+k8s_worker_ips         = ["192.168.10.21", "192.168.10.22"]
 ```
 
 ### Execution Steps
