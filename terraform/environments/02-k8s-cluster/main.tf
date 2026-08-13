@@ -75,7 +75,7 @@ resource "libvirt_cloudinit_disk" "control_plane_init" {
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
     hostname         = "k8s-control-plane"
     ssh_public_key   = file(var.ssh_public_key_path)
-    host_private_key = tls_private_key.k8s_control_plane_host_key.private_key_pem
+    host_private_key = tls_private_key.k8s_control_plane_host_key.private_key_openssh
     host_public_key  = tls_private_key.k8s_control_plane_host_key.public_key_openssh
   })
 }
@@ -88,7 +88,7 @@ resource "libvirt_cloudinit_disk" "worker_init" {
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
     hostname         = "k8s-worker-${format("%02d", count.index + 1)}"
     ssh_public_key   = file(var.ssh_public_key_path)
-    host_private_key = tls_private_key.k8s_worker_host_key[count.index].private_key_pem
+    host_private_key = tls_private_key.k8s_worker_host_key[count.index].private_key_openssh
     host_public_key  = tls_private_key.k8s_worker_host_key[count.index].public_key_openssh
   })
 }
