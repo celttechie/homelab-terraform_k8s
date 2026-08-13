@@ -13,7 +13,7 @@ While this solved the immediate provisioning race condition, bypassing host key 
 2. **Security Compliance & Best Practices**: Bypassing SSH verification violates Zero-Trust security principles and pre-commit security standards established in [ADR 002](002-pre-commit-security-and-linting.md).
 
 ## Decision
-We adopt **Strategy 1: Pre-generate and Inject Host Keys (Deterministic & Preferred)** with **Strict Host Key Verification**:
+We adopt **Pre-generated and Injected Host Keys** with **Strict Host Key Verification**:
 
 1. **Pre-Generated SSH Host Keys in Terraform**:
    - Terraform manages Ed25519 host key pairs for each guest VM (`resource "tls_private_key" "k8s_node_host_key"`).
