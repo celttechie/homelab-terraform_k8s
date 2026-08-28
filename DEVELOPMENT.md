@@ -72,7 +72,37 @@ This repository uses [`pre-commit`](https://pre-commit.com/) to automatically en
 
 ---
 
-## 3. Stage 1 Terraform Provisioning Workflow (`01-nested-sandbox`)
+---
+
+## 3. Makefile Developer Workflow
+
+For developer convenience and unified CI/CD execution, a root `Makefile` provides standardized targets:
+
+```bash
+# View all available targets and descriptions
+make help
+
+# Stage 1 Workflow
+make stage1-init
+make stage1-plan
+make stage1-apply
+make verify-stage1
+
+# Stage 2 Workflow
+make stage2-init
+make stage2-plan
+make stage2-apply
+make verify-stage2
+
+# Quality & Hygiene Gates
+make lint
+make fmt
+make clean
+```
+
+---
+
+## 4. Stage 1 Terraform Provisioning Workflow (`01-nested-sandbox`)
 
 ### Workspace Variables (`terraform/environments/01-nested-sandbox/terraform.tfvars`)
 
@@ -94,21 +124,21 @@ sandbox_vcpu    = 2
 ### Execution Steps
 
 ```bash
+# Via Makefile (from repository root):
+make stage1-init
+make stage1-plan
+make stage1-apply
+
+# OR via Terraform CLI directly:
 cd terraform/environments/01-nested-sandbox
-
-# Initialize provider plugins
 terraform init
-
-# Generate execution plan
 terraform plan
-
-# Apply infrastructure changes
 terraform apply
 ```
 
 ---
 
-## 4. Stage 2 Downstream K8s Cluster Provisioning (`02-k8s-cluster`)
+## 5. Stage 2 Downstream K8s Cluster Provisioning (`02-k8s-cluster`)
 
 ### Workspace Variables (`terraform/environments/02-k8s-cluster/terraform.tfvars`)
 
@@ -122,7 +152,6 @@ cp terraform.tfvars.example terraform.tfvars
 Edit `terraform.tfvars`:
 ```hcl
 nested_hypervisor_ip   = "<sandbox-vm-ip>" # e.g. IP from Stage 1 sandbox_ip_address output
-
 nested_hypervisor_user = "ubuntu"
 cluster_network_cidr   = "192.168.10.0/24"
 k8s_control_plane_ip   = "192.168.10.10"
@@ -133,22 +162,50 @@ k8s_worker_ips         = ["192.168.10.21", "192.168.10.22"]
 ### Execution Steps
 
 ```bash
+# Via Makefile (from repository root):
+make stage2-init
+make stage2-plan
+make stage2-apply
+
+# OR via Terraform CLI directly:
 cd terraform/environments/02-k8s-cluster
-
-# Initialize provider plugins
 terraform init
-
-# Generate execution plan
 terraform plan
-
-# Apply infrastructure changes
 terraform apply
 ```
+
+### Automated Stage 2 Health Verification (`scripts/verify-stage2.sh`)
+
+After provisioning Stage 2, run the non-destructive verification tool to validate SSH connectivity, node readiness, deterministic host keys, and live dashboard ingress:
+
+```bash
+# Run verification via Makefile:
+make verify-stage2
+
+# OR directly with custom flags:
+./scripts/verify-stage2.sh --check
+./scripts/verify-stage2.sh --skip-live  # Static validation only
+```
+
+Verification findings and ADR compliance status are automatically recorded in `docs/artifacts/stage2_verification_report.md`.
+
+### Workload & Dashboard Access (ADR 007)
+
+- **Browser Ingress**: Navigate to `http://<sandbox-vm-ip>:8080` (forwarded to `worker-01:30080` via hypervisor NAT).
+- **SSH Local Tunnel**:
+  ```bash
+  ssh -L 8080:192.168.10.21:30080 ubuntu@<sandbox-vm-ip>
+  ```
+  Open `http://localhost:8080` in your local browser.
+- **Kubectl API Tunnel**:
+  ```bash
+  ssh -L 6443:192.168.10.10:6443 ubuntu@<sandbox-vm-ip>
+  ```
 
 ---
 
 
-## 5. Git & Pull Request Workflow
+## 6. Git & Pull Request Workflow
 
 All contributions must follow an atomic feature branching strategy and conform to standard repository Pull Request governance.
 
@@ -166,7 +223,7 @@ All contributions must follow an atomic feature branching strategy and conform t
    ```bash
    pre-commit run --all-files
    ```
-   Ensure all 10 active pre-commit hooks pass cleanly before staging files.
+   Ensure all active pre-commit hooks pass cleanly before staging files.
 
 3. **Open a Pull Request Using the PR Template:**
    When submitting a Pull Request on GitHub, fill out the standard template automatically loaded from [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md):
@@ -178,7 +235,7 @@ All contributions must follow an atomic feature branching strategy and conform t
 
 ---
 
-## 6. Security & Secret Prevention
+## 7. Security & Secret Prevention
 
 
 - **Never commit `.tfvars` files containing credentials.** (Enforced via `.gitignore`).
