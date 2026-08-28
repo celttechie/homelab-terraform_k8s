@@ -1,6 +1,6 @@
 # Developer & Workflow Guide
 
-This guide outlines local workspace setup, pre-commit hook enforcement, secret scanning, Pull Request standards, and infrastructure deployment workflows for contributors.
+This guide outlines local workspace setup, pre-commit hook enforcement, secret scanning, Pull Request standards, and infrastructure deployment workflows for contributors across Stages 1, 2, and 3.
 
 ---
 
@@ -41,8 +41,6 @@ Installs missing KVM packages, configures non-root `libvirt`/`kvm` group access,
 sudo ./scripts/bootstrap-host.sh <username>
 ```
 
-
-
 ---
 
 ## 2. Pre-Commit Hooks & Quality Assurance
@@ -54,7 +52,7 @@ This repository uses [`pre-commit`](https://pre-commit.com/) to automatically en
 - **Gitleaks (`gitleaks`)**: Scans all staged files for private keys, tokens, and hardcoded credentials.
 - **Terraform Format (`terraform_fmt`)**: Ensures consistent canonical formatting across all `.tf` files.
 - **Terraform Validation (`terraform_validate`)**: Validates manifest syntax and provider configuration integrity.
-- **Terraform Docs (`terraform-docs`)**: Automatically generates module documentation tables in `README.md`.
+- **Terraform Docs (`terraform-docs`)**: Automatically generates module documentation tables in `README.md` for Stages 1, 2, and 3.
 - **Kubernetes Validation (`kubeconform`)**: Validates Kubernetes YAML manifests against official schemas.
 - **General Hygiene**: Checks YAML syntax, prevents trailing whitespace, and blocks oversized files.
 
@@ -72,8 +70,6 @@ This repository uses [`pre-commit`](https://pre-commit.com/) to automatically en
 
 ---
 
----
-
 ## 3. Makefile Developer Workflow
 
 For developer convenience and unified CI/CD execution, a root `Makefile` provides standardized targets:
@@ -82,21 +78,28 @@ For developer convenience and unified CI/CD execution, a root `Makefile` provide
 # View all available targets and descriptions
 make help
 
-# Stage 1 Workflow
+# Stage 1 Workflow (Nested Sandbox Hypervisor)
 make stage1-init
 make stage1-plan
 make stage1-apply
 make verify-stage1
 
-# Stage 2 Workflow
+# Stage 2 Workflow (Downstream K8s Cluster & NAT VPC)
 make stage2-init
 make stage2-plan
 make stage2-apply
 make verify-stage2
 
+# Stage 3 Workflow (Automated K3s Distribution Bootstrap)
+make stage3-init
+make stage3-plan
+make stage3-apply
+make verify-stage3
+
 # Quality & Hygiene Gates
 make lint
 make fmt
+make docs
 make clean
 ```
 
@@ -189,26 +192,85 @@ make verify-stage2
 
 Verification findings and ADR compliance status are automatically recorded in `docs/artifacts/stage2_verification_report.md`.
 
-### Workload & Dashboard Access (ADR 007)
+---
 
-- **Browser Ingress**: Navigate to `http://<sandbox-vm-ip>:8080` (forwarded to `worker-01:30080` via hypervisor NAT).
-- **SSH Local Tunnel**:
-  ```bash
-  ssh -L 8080:192.168.10.21:30080 ubuntu@<sandbox-vm-ip>
-  ```
-  Open `http://localhost:8080` in your local browser.
-- **Kubectl API Tunnel**:
-  ```bash
-  ssh -L 6443:192.168.10.10:6443 ubuntu@<sandbox-vm-ip>
-  ```
+## 6. Stage 3 Automated K3s Distribution Bootstrapping (`03-k8s-bootstrap`)
+
+### Workspace Variables (`terraform/environments/03-k8s-bootstrap/terraform.tfvars`)
+
+After Stage 2 is applied, navigate to the Stage 3 environment workspace, copy the example configuration file, and customize parameters:
+
+```bash
+cd terraform/environments/03-k8s-bootstrap
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars`:
+```hcl
+nested_hypervisor_ip   = "192.168.9.189" # Stage 1 sandbox VM IP
+nested_hypervisor_user = "ubuntu"
+ssh_private_key_path   = "~/.ssh/id_ed25519"
+ssh_known_hosts_path   = "~/.ssh/known_hosts"
+stage2_known_hosts_path = "../02-k8s-cluster/.terraform/known_hosts"
+
+k8s_control_plane_ip   = "192.168.10.10"
+k8s_worker_ips         = ["192.168.10.21", "192.168.10.22"]
+k3s_version            = "v1.28.8+k3s1"
+
+cluster_cidr           = "10.42.0.0/16"
+service_cidr           = "10.43.0.0/16"
+cluster_dns            = "10.43.0.10"
+```
+
+### Execution Steps
+
+```bash
+# Via Makefile (from repository root):
+make stage3-init
+make stage3-plan
+make stage3-apply
+
+# OR via Terraform CLI directly:
+cd terraform/environments/03-k8s-bootstrap
+terraform init
+terraform plan
+terraform apply
+```
+
+### Automated Stage 3 Verification (`scripts/verify-stage3.sh`)
+
+After bootstrapping Stage 3, run the automated verification suite to validate control plane status, worker registration, core system pods, and workstation kubeconfig:
+
+```bash
+# Run verification via Makefile:
+make verify-stage3
+
+# OR directly with custom flags:
+./scripts/verify-stage3.sh --check
+./scripts/verify-stage3.sh --skip-live  # Static validation only
+```
+
+Verification findings are recorded in `docs/artifacts/stage3_verification_report.md`.
+
+### Workstation Cluster Access (`kubectl`)
+
+Stage 3 extracts a ready-to-use `kubeconfig.yaml` configured for SSH tunnel forwarding:
+
+```bash
+# Step 1: Open SSH local port forwarding tunnel in a separate terminal:
+ssh -N -L 6443:192.168.10.10:6443 ubuntu@<nested_hypervisor_ip>
+
+# Step 2: Use the generated kubeconfig:
+export KUBECONFIG=terraform/environments/03-k8s-bootstrap/kubeconfig.yaml
+kubectl get nodes -o wide
+kubectl get pods -A
+```
 
 ---
 
-
-## 6. Git & Pull Request Workflow
+## 7. Git & Pull Request Workflow
 
 All contributions must follow an atomic feature branching strategy and conform to standard repository Pull Request governance.
-
 
 ### Step-by-Step Feature Workflow
 
@@ -231,13 +293,12 @@ All contributions must follow an atomic feature branching strategy and conform t
    - **Key Changes & Technical Details:** Summarize key modifications and resource definitions.
    - **Validation & Empirical Testing:** Paste terminal output proving `pre-commit run --all-files` passed cleanly.
    - **Security Checklist:** Confirm no credentials/keys were committed (`gitleaks` passed).
-   - **Related ADRs:** Reference any associated Architecture Decision Records (e.g. `docs/adr/002-pre-commit-security-and-linting.md`).
+   - **Related ADRs:** Reference any associated Architecture Decision Records (e.g. `docs/adr/009-automated-k3s-distribution-bootstrap-and-kubeconfig-management.md`).
 
 ---
 
-## 7. Security & Secret Prevention
-
+## 8. Security & Secret Prevention
 
 - **Never commit `.tfvars` files containing credentials.** (Enforced via `.gitignore`).
-- **Always verify SSH Host Keys.** Provider URIs use strict `known_hosts` verification.
+- **Always verify SSH Host Keys.** Provider URIs and jump connections use strict `known_hosts` verification (ADR 008).
 - **Run `pre-commit run --all-files` before creating Pull Requests.**

@@ -1,0 +1,16 @@
+# Copy this file to terraform.tfvars and customize for your environment:
+# cp terraform.tfvars.example terraform.tfvars
+
+nested_hypervisor_ip   = "192.168.9.189" # Replace with your Stage 1 sandbox_ip_address output
+nested_hypervisor_user = "ubuntu"
+ssh_private_key_path   = "~/.ssh/id_ed25519"
+ssh_known_hosts_path   = "~/.ssh/known_hosts"
+stage2_known_hosts_path = "../02-k8s-cluster/.terraform/known_hosts"
+
+k8s_control_plane_ip   = "192.168.10.10"
+k8s_worker_ips         = ["192.168.10.21", "192.168.10.22"]
+k3s_version            = "v1.28.8+k3s1"
+
+cluster_cidr           = "10.42.0.0/16"
+service_cidr           = "10.43.0.0/16"
+cluster_dns            = "10.43.0.10"

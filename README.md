@@ -1,14 +1,14 @@
 # Homelab Infrastructure & Kubernetes Terraform Provisioner
 
-Automated provisioner for KVM virtual machines on local hypervisor infrastructure using Terraform, `libvirt`, and `cloud-init`.
+Automated provisioner for KVM virtual machines on local hypervisor infrastructure using Terraform, `libvirt`, `cloud-init`, and automated K3s Kubernetes distribution bootstrapping.
 
 ## 📚 Documentation Architecture
 
 | Guide | Purpose |
 | :--- | :--- |
 | 🌐 **[Environment Specification](docs/environment.md)** | Target hypervisor host setup, `br0` L2 network bridging, and host AppArmor security posture. |
-| 🛠️ **[Developer & Workflow Guide](DEVELOPMENT.md)** | Workstation prerequisite installation (`terraform`, `libvirt-clients`, `pre-commit`), Pull Request workflows, and provisioning commands. |
-| 📑 **[Architecture Decision Records](docs/adr/)** | Project design decisions and architectural rationale. |
+| 🛠️ **[Developer & Workflow Guide](DEVELOPMENT.md)** | Workstation prerequisite installation (`terraform`, `libvirt-clients`, `pre-commit`), Pull Request workflows, and provisioning commands across Stages 1, 2, and 3. |
+| 📑 **[Architecture Decision Records](docs/adr/)** | Project design decisions and architectural rationale (ADRs 001–009). |
 
 ---
 
@@ -33,6 +33,11 @@ make stage2-init
 make stage2-plan
 make stage2-apply
 
-# 5. Automated Verification
-make verify-stage2
+# 5. Stage 3: Bootstrap K3s Distribution & Extract Kubeconfig
+make stage3-init
+make stage3-plan
+make stage3-apply
+
+# 6. Automated Verification
+make verify-stage3
 ```

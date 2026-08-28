@@ -44,6 +44,14 @@ repos:
         files: ^terraform/environments/02-k8s-cluster/.*\.tf$
         pass_filenames: false
         args: ['markdown', 'table', '--output-file', 'README.md', './terraform/environments/02-k8s-cluster']
+      - id: terraform-docs-stage3
+        name: terraform-docs (Stage 3)
+        entry: terraform-docs
+        language: golang
+        additional_dependencies: ['github.com/terraform-docs/terraform-docs@v0.18.0']
+        files: ^terraform/environments/03-k8s-bootstrap/.*\.tf$
+        pass_filenames: false
+        args: ['markdown', 'table', '--output-file', 'README.md', './terraform/environments/03-k8s-bootstrap']
 
   # 5. Kubernetes Manifest Validation
   - repo: local
