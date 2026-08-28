@@ -5,12 +5,40 @@ terraform {
       source  = "dmacvicar/libvirt"
       version = "~> 0.7.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = ">= 4.0.0"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = ">= 2.4.0"
+    }
   }
 }
 
 # Construct provider URI targeting the Stage 1 Nested Sandbox hypervisor VM
 provider "libvirt" {
   uri = "qemu+ssh://${var.nested_hypervisor_user}@${var.nested_hypervisor_ip}/system?keyfile=${pathexpand(var.ssh_private_key_path)}&known_hosts=${pathexpand(var.ssh_known_hosts_path)}"
+}
+
+# Deterministic SSH Host Keys for Control Plane & Worker Nodes (ADR 008)
+resource "tls_private_key" "k8s_control_plane_host_key" {
+  algorithm = "ED25519"
+}
+
+resource "tls_private_key" "k8s_worker_host_key" {
+  count     = var.k8s_worker_count
+  algorithm = "ED25519"
+}
+
+# Workspace-isolated known_hosts file containing deterministic public host keys
+resource "local_file" "stage2_known_hosts" {
+  filename        = "${path.module}/.terraform/known_hosts"
+  file_permission = "0600"
+  content = join("", concat(
+    ["${var.k8s_control_plane_ip} ${trimspace(tls_private_key.k8s_control_plane_host_key.public_key_openssh)}\n"],
+    [for i in range(var.k8s_worker_count) : "${var.k8s_worker_ips[i]} ${trimspace(tls_private_key.k8s_worker_host_key[i].public_key_openssh)}\n"]
+  ))
 }
 
 # 1. Base Ubuntu 22.04 LTS Cloud Image stored in Stage 1 default pool
@@ -45,8 +73,10 @@ resource "libvirt_cloudinit_disk" "control_plane_init" {
   name = "k8s-control-plane-init.iso"
   pool = "default"
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
-    hostname       = "k8s-control-plane"
-    ssh_public_key = file(var.ssh_public_key_path)
+    hostname         = "k8s-control-plane"
+    ssh_public_key   = file(var.ssh_public_key_path)
+    host_private_key = tls_private_key.k8s_control_plane_host_key.private_key_openssh
+    host_public_key  = tls_private_key.k8s_control_plane_host_key.public_key_openssh
   })
 }
 
@@ -56,8 +86,10 @@ resource "libvirt_cloudinit_disk" "worker_init" {
   name  = "k8s-worker-${format("%02d", count.index + 1)}-init.iso"
   pool  = "default"
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
-    hostname       = "k8s-worker-${format("%02d", count.index + 1)}"
-    ssh_public_key = file(var.ssh_public_key_path)
+    hostname         = "k8s-worker-${format("%02d", count.index + 1)}"
+    ssh_public_key   = file(var.ssh_public_key_path)
+    host_private_key = tls_private_key.k8s_worker_host_key[count.index].private_key_openssh
+    host_public_key  = tls_private_key.k8s_worker_host_key[count.index].public_key_openssh
   })
 }
 
