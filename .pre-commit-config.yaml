@@ -28,14 +28,22 @@ repos:
   # 4. Terraform Documentation Generation (Auto-installed via Go)
   - repo: local
     hooks:
-      - id: terraform-docs
-        name: terraform-docs
+      - id: terraform-docs-stage1
+        name: terraform-docs (Stage 1)
         entry: terraform-docs
         language: golang
         additional_dependencies: ['github.com/terraform-docs/terraform-docs@v0.18.0']
-        files: \.tf$
+        files: ^terraform/environments/01-nested-sandbox/.*\.tf$
         pass_filenames: false
         args: ['markdown', 'table', '--output-file', 'README.md', './terraform/environments/01-nested-sandbox']
+      - id: terraform-docs-stage2
+        name: terraform-docs (Stage 2)
+        entry: terraform-docs
+        language: golang
+        additional_dependencies: ['github.com/terraform-docs/terraform-docs@v0.18.0']
+        files: ^terraform/environments/02-k8s-cluster/.*\.tf$
+        pass_filenames: false
+        args: ['markdown', 'table', '--output-file', 'README.md', './terraform/environments/02-k8s-cluster']
 
   # 5. Kubernetes Manifest Validation
   - repo: local

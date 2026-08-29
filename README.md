@@ -23,13 +23,16 @@ ssh <username>@<target-server-ip> 'bash -s -- --check <username>' < scripts/boot
 # 2. Install and register pre-commit hooks (See DEVELOPMENT.md)
 pre-commit install
 
-# 3. Navigate to Stage 1 Nested Sandbox workspace
-cd terraform/environments/01-nested-sandbox
+# 3. Stage 1: Deploy Nested Sandbox Hypervisor
+make stage1-init
+make stage1-plan
+make stage1-apply
 
-# 4. Configure environment variables
-cp terraform.tfvars.example terraform.tfvars
+# 4. Stage 2: Deploy Downstream K8s Cluster & Ingress Workload
+make stage2-init
+make stage2-plan
+make stage2-apply
 
-# 5. Plan and apply Stage 1 infrastructure
-terraform init
-terraform plan
+# 5. Automated Verification
+make verify-stage2
 ```

@@ -17,3 +17,18 @@ output "kubectl_tunnel_command" {
   value       = "ssh -L 6443:${libvirt_domain.k8s_control_plane.network_interface[0].addresses[0]}:6443 ${var.nested_hypervisor_user}@${var.nested_hypervisor_ip}"
   description = "SSH tunnel command to securely access the Kubernetes API server from local workstation"
 }
+
+output "dashboard_url" {
+  value       = "http://${var.nested_hypervisor_ip}:8080"
+  description = "Direct HTTP URL to access the dynamic cluster monitoring dashboard via hypervisor NAT forwarding"
+}
+
+output "dashboard_tunnel_command" {
+  value       = "ssh -L 8080:${var.k8s_worker_ips[0]}:30080 ${var.nested_hypervisor_user}@${var.nested_hypervisor_ip}"
+  description = "SSH port-forward tunnel command to access the dynamic dashboard from workstation localhost"
+}
+
+output "stage2_known_hosts_path" {
+  value       = local_file.stage2_known_hosts.filename
+  description = "Path to the workspace-isolated SSH known_hosts file containing deterministic host key signatures"
+}
