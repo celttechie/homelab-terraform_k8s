@@ -11,6 +11,7 @@ SHELL := /bin/bash
 # Paths
 STAGE1_DIR := terraform/environments/01-nested-sandbox
 STAGE2_DIR := terraform/environments/02-k8s-cluster
+STAGE3_DIR := terraform/environments/03-k8s-bootstrap
 SCRIPTS_DIR := scripts
 
 # Colors
@@ -73,6 +74,28 @@ stage2-destroy: ## Destroy Stage 2 Kubernetes Cluster infrastructure
 	@echo -e "$(YELLOW)===> Destroying Stage 2 Kubernetes Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE2_DIR) destroy
 
+##@ ⚙️ Stage 3: Automated K3s Distribution Bootstrap (03-k8s-bootstrap)
+
+.PHONY: stage3-init
+stage3-init: ## Initialize Terraform/OpenTofu providers for Stage 3
+	@echo -e "$(GREEN)===> Initializing Stage 3 K3s Bootstrap workspace...$(RESET)"
+	terraform -chdir=$(STAGE3_DIR) init
+
+.PHONY: stage3-plan
+stage3-plan: ## Generate and review execution plan for Stage 3
+	@echo -e "$(GREEN)===> Planning Stage 3 K3s Bootstrap infrastructure...$(RESET)"
+	terraform -chdir=$(STAGE3_DIR) plan
+
+.PHONY: stage3-apply
+stage3-apply: ## Bootstrap K3s cluster, join workers, and extract kubeconfig
+	@echo -e "$(GREEN)===> Applying Stage 3 K3s Bootstrap infrastructure...$(RESET)"
+	terraform -chdir=$(STAGE3_DIR) apply
+
+.PHONY: stage3-destroy
+stage3-destroy: ## Reset K3s cluster state across control plane and workers
+	@echo -e "$(YELLOW)===> Destroying Stage 3 K3s Bootstrap state...$(RESET)"
+	terraform -chdir=$(STAGE3_DIR) destroy
+
 ##@ 🔍 Automated Verification & Auditing
 
 .PHONY: verify-stage1
@@ -86,6 +109,11 @@ verify-stage1: ## Run non-destructive read-only audit of hypervisor host (ADR 00
 verify-stage2: ## Run automated health, SSH, and ingress checks on Stage 2 (ADRs 006, 007, 008)
 	@echo -e "$(GREEN)===> Verifying Stage 2 Kubernetes Cluster infrastructure...$(RESET)"
 	python3 $(SCRIPTS_DIR)/verify_stage2.py --check
+
+.PHONY: verify-stage3
+verify-stage3: ## Run automated validation checks on Stage 3 K3s bootstrap (ADR 009)
+	@echo -e "$(GREEN)===> Verifying Stage 3 Kubernetes Distribution Bootstrap...$(RESET)"
+	python3 $(SCRIPTS_DIR)/verify_stage3.py
 
 ##@ 🧹 Code Quality, Linting & Formatting
 
@@ -104,6 +132,7 @@ docs: ## Generate and update Terraform documentation tables
 	@echo -e "$(GREEN)===> Generating Terraform documentation tables...$(RESET)"
 	pre-commit run terraform-docs-stage1 --all-files || true
 	pre-commit run terraform-docs-stage2 --all-files || true
+	pre-commit run terraform-docs-stage3 --all-files || true
 
 .PHONY: clean
 clean: ## Clean up temporary files, pycache, and ephemeral artifacts
