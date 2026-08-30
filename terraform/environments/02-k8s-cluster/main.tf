@@ -121,6 +121,10 @@ resource "libvirt_domain" "k8s_control_plane" {
   vcpu       = var.k8s_control_plane_vcpu
   qemu_agent = false
 
+  cpu {
+    mode = "host-passthrough"
+  }
+
   cloudinit = libvirt_cloudinit_disk.control_plane_init.id
 
   network_interface {
@@ -153,6 +157,10 @@ resource "libvirt_domain" "k8s_worker" {
   memory     = var.k8s_worker_memory
   vcpu       = var.k8s_worker_vcpu
   qemu_agent = false
+
+  cpu {
+    mode = "host-passthrough"
+  }
 
   cloudinit = libvirt_cloudinit_disk.worker_init[count.index].id
 
